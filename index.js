@@ -3,33 +3,31 @@
  */
 
 import {NativeModules, NativeAppEventEmitter} from 'react-native';
-import promisify from 'es6-promisify';
 
 const {WeiboAPI} = NativeModules;
 
-// Used only with promisify. Transform callback to promise result.
-function translateError(err, result) {
-    if (!err) {
-        return this.resolve(result);
-    }
-    if (typeof err === 'object') {
-        if (err instanceof Error) {
-            return this.reject(ret);
-        }
-        return this.reject(Object.assign(new Error(err.message), { errCode: err.errCode }));
-    } else if (typeof err === 'string') {
-        return this.reject(new Error(err));
-    }
-    this.reject(Object.assign(new Error(), { origin: err }));
-}
 
 function wrapApi(nativeFunc) {
     if (!nativeFunc) {
         return undefined;
     }
-    const promisified = promisify(nativeFunc, translateError);
     return (...args) => {
-        return promisified(...args);
+        return new Promise((resolve, reject) => {
+          nativeFunc(...args, (err, result)=>{
+            if (!err) {
+                return resolve(result);
+            }
+            if (typeof err === 'object') {
+                if (err instanceof Error) {
+                    return reject(ret);
+                }
+                return reject(Object.assign(new Error(err.message), { errCode: err.errCode }));
+            } else if (typeof err === 'string') {
+                return reject(new Error(err));
+            }
+            reject(Object.assign(new Error(), { origin: err }));
+          })
+        });
     };
 }
 
